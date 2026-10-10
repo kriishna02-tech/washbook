@@ -51,6 +51,45 @@ npm run build
 
 The emulator tests race different residents for one machine, race one resident for two machines, reject stale/repeated extensions, reclaim expired reservations, verify idempotent retry, prevent a stale session from releasing a newer one, and test owner/admin authorization. The rules suite attempts direct client writes, privilege escalation, and access to another resident's sessions. The full suite also exercises the Firebase web SDK against the exported callable HTTPS handlers served on a local TCP port, with real token verification against the Auth emulator. It does not require the Functions emulator's Unix-socket transport. `npm run emulators` starts the standard Functions emulator for interactive development.
 
+## Windows PowerShell walkthrough
+
+Use Node 24+ and Git. Java 21+ is needed for the Firebase emulator tests and local backend. Open this repository in VS Code and select **Terminal > New Terminal**. `npm.cmd` runs npm without depending on PowerShell's script execution policy.
+
+Install dependencies and start the browser demo from the repository root:
+
+```powershell
+npm.cmd ci
+npm.cmd run dev
+```
+
+Open `http://localhost:5173` and select **Explore the demo**. Reserve an available machine, add one 15-minute extension, finish the session, inspect history, and use **Try admin view** to manage maintenance. Keep this terminal open; Ctrl+C stops the development server.
+
+In a second terminal at the same repository root, run:
+
+```powershell
+npm.cmd test
+npm.cmd run build
+npm.cmd run test:full-emulator
+```
+
+Expect 3 domain tests, a successful production build, and 16 emulator-backed tests (14 integration/rules tests and 2 callable HTTP tests). The last command starts and stops its own Auth/Firestore emulators. Stop any interactive emulator instance with Ctrl+C first so its ports are free. The first emulator run downloads its binaries. Unit tests and the production build do not require Java or a Firebase account.
+
+To use the shared backend in the browser, create `.env` from `.env.example` only if it does not already exist. Set `VITE_DEMO_MODE=false` and `VITE_USE_EMULATORS=true`, then use two terminals at the repository root:
+
+```powershell
+# Terminal 1: wait until the emulators report that they are ready.
+npm.cmd run emulators
+```
+
+```powershell
+# Terminal 2: seed the local database, then start the UI.
+$env:FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080'
+npm.cmd run seed
+npm.cmd run dev
+```
+
+Open `http://localhost:5173` and select **Enter local emulator**. The emulator console is at `http://localhost:4000`. Use a separate browser profile or an incognito window for a second resident; two normal tabs share the same authenticated user. A booking should update both residents' machine availability, and the second resident cannot claim the occupied machine. Restart the Vite server whenever you change `.env`.
+
 ## Deploy to your Firebase project
 
 1. Create a Firebase project, enable Firestore and Google sign-in, and add your site domain to Authentication's authorized domains.
