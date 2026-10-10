@@ -1,70 +1,71 @@
 # WashBook — Hostel Washing Machine Booking
 
-React + Firebase application for live machine availability, Google sign-in, immediate timed reservations, one 15-minute extension, maintenance, discrepancy reports, and administrator reconciliation. Firestore transactions execute in callable Cloud Functions; browser clients have read-only access under Firestore security rules.
+React + Firebase application for hostel laundry reservations. Residents can see machine availability, book a 30-, 45-, or 60-minute session, extend once by 15 minutes, and view their history. Administrators can manage maintenance, resolve sessions, and review discrepancy reports.
 
-## Try the interface immediately
+The shared backend uses Firestore transactions in callable Cloud Functions. Browser clients have read-only access under Firestore security rules. A browser demo is included so you can try the interface immediately.
 
-Requires Node.js 24+.
+## Requirements
 
-```bash
-npm ci
-npm run dev
+| Tool | Version | Needed for |
+| --- | --- | --- |
+| Node.js and npm | Node.js 24+ | Running the app, tests, and build |
+| Git | Installed and available in your terminal | Cloning and pulling updates |
+| Java | 21+ | Firebase emulator tests and the local backend |
+
+The browser demo, unit tests, and production build require no Java installation or Firebase account.
+
+## Quick start
+
+If you have not downloaded the project yet:
+
+```powershell
+git clone https://github.com/kriishna02-tech/washbook.git
+cd washbook
 ```
 
-Open `http://localhost:5173` and choose **Explore the demo**. Demo mode stores sample data in your browser and visibly labels itself. Reserve an available machine, extend/finish your session, inspect history, or switch to the admin demo to resolve sessions and manage maintenance. It requires no cloud account. The demo is a UI walkthrough; the Firebase backend provides the real shared reservation guarantee.
+If you already have the repository, open its folder in VS Code and select **Terminal > New Terminal**. Run all commands below from the folder containing `package.json`. To get the latest changes in an existing clone:
 
-## Run the real backend locally
-
-Install Java 21+ for the Firestore emulator. Create `.env` from `.env.example` and set:
-
-```dotenv
-VITE_DEMO_MODE=false
-VITE_USE_EMULATORS=true
+```powershell
+git pull --ff-only
 ```
 
-In separate terminals:
-
-```bash
-npm run emulators
-# PowerShell: $env:FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080'
-# macOS/Linux: export FIRESTORE_EMULATOR_HOST=127.0.0.1:8080
-npm run seed
-npm run dev
-```
-
-The emulator login creates a local anonymous development user. The production login uses Google authentication. The UI at `http://localhost:4000` shows emulator users and data. To make your emulator user an administrator, set `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` and run:
-
-```bash
-node functions/scripts/set-admin.mjs YOUR_EMULATOR_UID demo-washbook
-```
-
-Sign out/in after changing claims. Production roles can only be assigned with a privileged Admin SDK identity; changing a browser document never grants admin access.
-
-## Tests and build
-
-```bash
-npm test
-npm run test:emulator
-npm run test:full-emulator
-npm run build
-```
-
-The emulator tests race different residents for one machine, race one resident for two machines, reject stale/repeated extensions, reclaim expired reservations, verify idempotent retry, prevent a stale session from releasing a newer one, and test owner/admin authorization. The rules suite attempts direct client writes, privilege escalation, and access to another resident's sessions. The full suite also exercises the Firebase web SDK against the exported callable HTTPS handlers served on a local TCP port, with real token verification against the Auth emulator. It does not require the Functions emulator's Unix-socket transport. `npm run emulators` starts the standard Functions emulator for interactive development.
-
-## Windows PowerShell walkthrough
-
-Use Node 24+ and Git. Java 21+ is needed for the Firebase emulator tests and local backend. Open this repository in VS Code and select **Terminal > New Terminal**. `npm.cmd` runs npm without depending on PowerShell's script execution policy.
-
-Install dependencies and start the browser demo from the repository root:
+### Windows PowerShell
 
 ```powershell
 npm.cmd ci
 npm.cmd run dev
 ```
 
-Open `http://localhost:5173` and select **Explore the demo**. Reserve an available machine, add one 15-minute extension, finish the session, inspect history, and use **Try admin view** to manage maintenance. Keep this terminal open; Ctrl+C stops the development server.
+`npm.cmd` runs npm without depending on PowerShell's script execution policy.
 
-In a second terminal at the same repository root, run:
+### macOS or Linux
+
+```bash
+npm ci
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) and select **Explore the demo**. Keep the terminal open while using the app; **Ctrl+C** stops the server. If Vite prints a different port, open the address it prints.
+
+Demo mode is enabled by default when there is no `.env` file. If you have already configured one, set `VITE_DEMO_MODE=true` and restart the development server to return to the demo. Demo bookings are saved in your browser. Use the local Firebase backend below to test shared reservations between residents.
+
+## Check the demo in your browser
+
+Complete these steps in order after selecting **Explore the demo**:
+
+| Step | Action | Expected result |
+| --- | --- | --- |
+| 1 | Select **Reserve machine** on an available machine, choose a duration, and confirm. | An active session appears with a countdown. |
+| 2 | Check the other available machines while your session is active. | Their reservation buttons are disabled; you can hold only one active booking. |
+| 3 | Select **+ 15 minutes**. | The end time increases by 15 minutes and the extension button becomes disabled. |
+| 4 | Select **Finish session**, then open **History**. | The machine becomes available and the session appears as completed. |
+| 5 | Select **Try admin view**, then **Set maintenance** on an available machine and enter a reason. | The machine becomes unavailable for reservations. **Return to service** makes it available again. |
+
+Select **Resident view** to leave the administrator demo.
+
+## Run tests and create a production build
+
+Open a second terminal in the same repository folder. On Windows PowerShell, run these commands one at a time:
 
 ```powershell
 npm.cmd test
@@ -72,23 +73,103 @@ npm.cmd run build
 npm.cmd run test:full-emulator
 ```
 
-Expect 3 domain tests, a successful production build, and 16 emulator-backed tests (14 integration/rules tests and 2 callable HTTP tests). The last command starts and stops its own Auth/Firestore emulators. Stop any interactive emulator instance with Ctrl+C first so its ports are free. The first emulator run downloads its binaries. Unit tests and the production build do not require Java or a Firebase account.
+On macOS or Linux, use `npm` in place of `npm.cmd`.
 
-To use the shared backend in the browser, create `.env` from `.env.example` only if it does not already exist. Set `VITE_DEMO_MODE=false` and `VITE_USE_EMULATORS=true`, then use two terminals at the repository root:
+| Command | Expected result | Java required? |
+| --- | --- | --- |
+| `npm.cmd test` | 3 domain tests pass. | No |
+| `npm.cmd run build` | TypeScript checking and Vite build succeed; output is written to `dist/`. | No |
+| `npm.cmd run test:full-emulator` | 14 integration/security-rule tests and 2 callable HTTP tests pass. | Yes, 21+ |
+
+The full suite starts and stops its own Auth and Firestore emulators. Stop any interactive emulator instance with **Ctrl+C** before running it so the ports are free. The first run downloads emulator binaries. The full test total is **19 tests**, including the 3 domain tests run separately. GitHub Actions runs the tests and build on Windows and Ubuntu.
+
+The tests cover competing reservations, one active booking per resident, stale/repeated extensions, expired reservations, idempotent retries, ownership fencing, and owner/admin authorization. Security-rule tests attempt direct client writes, privilege escalation, and access to another resident's sessions. The callable tests use the Firebase web SDK against the exported HTTPS handlers on a local TCP port and verify real Auth emulator tokens.
+
+To preview the production build after `npm.cmd run build`:
 
 ```powershell
-# Terminal 1: wait until the emulators report that they are ready.
+npm.cmd run preview
+```
+
+Open the address printed in the terminal, normally [http://localhost:4173](http://localhost:4173).
+
+## Run the shared Firebase backend locally
+
+This mode uses local Firebase emulators and does not require a Firebase account. Install Java 21+ first. Stop the development server with **Ctrl+C** before changing modes.
+
+### 1. Configure the app
+
+In PowerShell, create `.env` only if it does not already exist:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+On macOS or Linux, the equivalent command is:
+
+```bash
+test -f .env || cp .env.example .env
+```
+
+Open `.env` in your editor and set these two values, keeping the other sample values:
+
+```dotenv
+VITE_DEMO_MODE=false
+VITE_USE_EMULATORS=true
+```
+
+### 2. Start the emulators in terminal 1
+
+```powershell
 npm.cmd run emulators
 ```
 
+Wait until the emulators report that they are ready. Keep this terminal open.
+
+### 3. Seed the database and start the app in terminal 2
+
+Open another terminal in the repository folder:
+
 ```powershell
-# Terminal 2: seed the local database, then start the UI.
-$env:FIRESTORE_EMULATOR_HOST = '127.0.0.1:8080'
+$env:FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080"
 npm.cmd run seed
 npm.cmd run dev
 ```
 
-Open `http://localhost:5173` and select **Enter local emulator**. The emulator console is at `http://localhost:4000`. Use a separate browser profile or an incognito window for a second resident; two normal tabs share the same authenticated user. A booking should update both residents' machine availability, and the second resident cannot claim the occupied machine. Restart the Vite server whenever you change `.env`.
+On macOS or Linux, use `export FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` and replace `npm.cmd` with `npm` in both terminals.
+
+Open [http://localhost:5173](http://localhost:5173) and select **Enter local emulator**. This creates a local anonymous development user. The emulator console at [http://localhost:4000](http://localhost:4000) shows users and database records.
+
+### 4. Test two residents
+
+Use a normal browser window for one resident and an incognito window or a separate browser profile for another. Two normal tabs share the same authenticated user.
+
+Book a machine as the first resident. Both windows should show the updated availability, and the second resident cannot reserve the occupied machine. If both residents attempt to reserve the same machine at the same time, only one reservation can succeed. Finish the session and check that the machine becomes available in both windows.
+
+### Optional: make a local user an administrator
+
+Copy the user's UID from the emulator console's Authentication page, then run this in PowerShell from the repository folder, replacing `YOUR_EMULATOR_UID`:
+
+```powershell
+$env:FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099"
+node functions/scripts/set-admin.mjs YOUR_EMULATOR_UID demo-washbook
+```
+
+On macOS or Linux, set the variable with `export FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` before running the same `node` command. Sign out and sign in again to refresh the administrator claim. Production login uses Google authentication, and production roles require a privileged Admin SDK identity.
+
+Restart the Vite server whenever you change `.env`. Local database data is temporary and can be recreated with `npm.cmd run seed` after restarting the emulators.
+
+## Troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| `npm.cmd` or `node` is not recognized | Install Node.js 24+ and reopen your terminal. Check `node --version` and `npm.cmd --version`. |
+| PowerShell says `npm.ps1` cannot be loaded | Use the `npm.cmd` commands shown above. |
+| npm cannot find `package.json` | Change to the `washbook` repository folder before running npm. |
+| The app is not at port 5173 | Open the exact address printed by Vite. |
+| Emulator tests report a Java error | Check `java -version`; Java 21+ must be available in the terminal. |
+| An emulator port is already in use | Stop your existing emulator terminal with **Ctrl+C** before starting another instance or the automated suite. |
+| Seeding says `FIRESTORE_EMULATOR_HOST` is missing | Set the variable in the same terminal where you run `npm.cmd run seed`. |
 
 ## Deploy to your Firebase project
 
@@ -117,6 +198,6 @@ References: [Firestore transactions](https://firebase.google.com/docs/firestore/
 
 ## Validation
 
-See [the validation record](docs/VALIDATION.md) for completed checks and live-service requirements. Dependencies are recorded in `uv.lock` or `package-lock.json`, and `.github/workflows/ci.yml` runs checks from this repository root.
+See [the validation record](docs/VALIDATION.md) for completed checks and live-service requirements. Dependencies are recorded in `package-lock.json`, and [the CI workflow](.github/workflows/ci.yml) runs checks from this repository root on Windows and Ubuntu.
 
 ![WashBook](docs/washbook-desktop.png)
